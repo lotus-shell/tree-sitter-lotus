@@ -1,6 +1,6 @@
+#include <stdio.h>
 #include <tree_sitter/parser.h>
 #include <wctype.h>
-#include <stdio.h>
 
 enum TokenType {
   BLOCK_COMMENT_START,
@@ -50,16 +50,21 @@ static inline void reset_state() {
   level_count = 0;
 }
 
-unsigned tree_sitter_lua_external_scanner_serialize(void *payload, char *buffer) {
+unsigned tree_sitter_lua_external_scanner_serialize(void *payload,
+                                                    char *buffer) {
   buffer[0] = ending_char;
   buffer[1] = level_count;
   return 2;
 }
 
-void tree_sitter_lua_external_scanner_deserialize(void *payload, const char *buffer, unsigned length) {
-  if (length == 0) return;
+void tree_sitter_lua_external_scanner_deserialize(void *payload,
+                                                  const char *buffer,
+                                                  unsigned length) {
+  if (length == 0)
+    return;
   ending_char = buffer[0];
-  if (length == 1) return;
+  if (length == 1)
+    return;
   level_count = buffer[1];
 }
 
@@ -142,7 +147,8 @@ static bool scan_comment_content(TSLexer *lexer) {
 }
 
 static bool scan_string_start(TSLexer *lexer) {
-  if (lexer->lookahead == '"' || lexer->lookahead == '\'') {
+  if (lexer->lookahead == '"' || lexer->lookahead == '\'' ||
+      lexer->lookahead == '`') {
     ending_char = lexer->lookahead;
     consume(lexer);
     return true;
@@ -172,7 +178,8 @@ static bool scan_string_content(TSLexer *lexer) {
     return scan_block_content(lexer);
   }
 
-  while (lexer->lookahead != '\n' && lexer->lookahead != 0 && lexer->lookahead != ending_char) {
+  while (lexer->lookahead != '\n' && lexer->lookahead != 0 &&
+         lexer->lookahead != ending_char) {
     if (consume_char('\\', lexer) && consume_char('z', lexer)) {
       while (iswspace(lexer->lookahead)) {
         consume(lexer);
@@ -190,7 +197,8 @@ static bool scan_string_content(TSLexer *lexer) {
   return true;
 }
 
-bool tree_sitter_lua_external_scanner_scan(void *payload, TSLexer *lexer, const bool *valid_symbols) {
+bool tree_sitter_lua_external_scanner_scan(void *payload, TSLexer *lexer,
+                                           const bool *valid_symbols) {
   if (valid_symbols[STRING_END] && scan_string_end(lexer)) {
     reset_state();
     lexer->result_symbol = STRING_END;
@@ -202,7 +210,8 @@ bool tree_sitter_lua_external_scanner_scan(void *payload, TSLexer *lexer, const 
     return true;
   }
 
-  if (valid_symbols[BLOCK_COMMENT_END] && ending_char == 0 && scan_block_end(lexer)) {
+  if (valid_symbols[BLOCK_COMMENT_END] && ending_char == 0 &&
+      scan_block_end(lexer)) {
     reset_state();
     lexer->result_symbol = BLOCK_COMMENT_END;
     return true;

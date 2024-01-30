@@ -1,4 +1,4 @@
-;;; Highlighting for lua
+;;; Highlighting for lotus
 
 ;;; Builtins
 ;; Keywords
@@ -135,14 +135,14 @@
 (function_call
   [
     ((identifier)+ @identifier . (identifier) @function.call . (function_call_paren))
-    ((identifier) @function.call.lua . (function_call_paren))])
+    ((identifier) @function.call.lotus . (function_call_paren))])
 
 (function_call
-  prefix: (identifier) @function.call.lua
+  prefix: (identifier) @function.call.lotus
   args: (string_argument) @string)
 
 (function_call
- prefix: (identifier) @function.call.lua
+ prefix: (identifier) @function.call.lotus
  args: (table_argument))
 
 ; (function [(function_name) (identifier)] @function)

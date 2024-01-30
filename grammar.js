@@ -11,18 +11,19 @@ const PREC = {
   OR: 3, // => or
   AND: 4, // => and
   COMPARE: 5, // => < <= == ~= >= >
-  BIT_OR: 6, // => |
-  BIT_NOT: 7, // => ~
-  BIT_AND: 8, // => &
-  SHIFT: 9, // => << >>
-  CONCAT: 10, // => ..
-  PLUS: 11, // => + -
-  MULTI: 12, // => * /             // %
-  UNARY: 13, // => not # - ~
-  POWER: 14, // => ^
+  PIPE: 6, // => |>
+  BIT_OR: 7, // => |
+  BIT_NOT: 8, // => ~
+  BIT_AND: 9, // => &
+  SHIFT: 10, // => << >>
+  CONCAT: 11, // => ..
+  PLUS: 12, // => + -
+  MULTI: 13, // => * /             // %
+  UNARY: 14, // => not # - ~
+  POWER: 15, // => ^
 
-  STATEMENT: 15,
-  PROGRAM: 16,
+  STATEMENT: 16,
+  PROGRAM: 17,
 };
 
 EQUALS_LEVELS = 5;
@@ -70,19 +71,19 @@ module.exports = grammar({
               $.documentation_command,
               $._documentation_tag_container,
               $._documentation_config_container,
-              $.documentation_class
-            )
+              $.documentation_class,
+            ),
           ),
           optional(alias($.return_statement, $.module_return_statement)),
-          optional("\0")
-        )
+          optional("\0"),
+        ),
       ),
 
     string: ($) =>
       seq(
         field("start", alias($._string_start, "string_start")),
         field("content", optional(alias($._string_content, "string_content"))),
-        field("end", alias($._string_end, "string_end"))
+        field("end", alias($._string_end, "string_end")),
       ),
 
     _statement: ($) =>
@@ -97,11 +98,11 @@ module.exports = grammar({
             $.repeat_statement,
             $.if_statement,
             $.for_statement,
-            $.function_statement
+            $.function_statement,
             // $.comment
           ),
-          optional(";")
-        )
+          optional(";"),
+        ),
       ),
 
     shebang: (_) => /#![^\n]*/,
@@ -111,7 +112,7 @@ module.exports = grammar({
     _chunk: ($) =>
       choice(
         seq(one_or_more($._statement), optional($._last_statement)),
-        $._last_statement
+        $._last_statement,
       ),
 
     _block: ($) => $._chunk,
@@ -128,8 +129,8 @@ module.exports = grammar({
           $.prefix_exp,
           $.tableconstructor,
           $.binary_operation,
-          $.unary_operation
-        )
+          $.unary_operation,
+        ),
       ),
 
     // Primitives {{{
@@ -144,7 +145,7 @@ module.exports = grammar({
 
       const decimal_integer_literal = choice(
         "0",
-        seq(optional("0"), /[1-9]/, optional(decimal_digits))
+        seq(optional("0"), /[1-9]/, optional(decimal_digits)),
       );
 
       const hex_digits = /[a-fA-F0-9]+/;
@@ -155,17 +156,17 @@ module.exports = grammar({
           decimal_integer_literal,
           ".",
           optional(decimal_digits),
-          optional(decimal_exponent_part)
+          optional(decimal_exponent_part),
         ),
         seq(".", decimal_digits, optional(decimal_exponent_part)),
-        seq(decimal_integer_literal, optional(decimal_exponent_part))
+        seq(decimal_integer_literal, optional(decimal_exponent_part)),
       );
 
       const hex_literal = seq(
         choice("0x", "0X"),
         hex_digits,
         optional(seq(".", hex_digits)),
-        optional(hex_exponent_part)
+        optional(hex_exponent_part),
       );
 
       return token(choice(decimal_literal, hex_literal));
@@ -176,7 +177,7 @@ module.exports = grammar({
     function_name: ($) =>
       seq(
         list_of($.identifier, alias(".", $.table_dot), false),
-        optional(seq(alias(":", $.table_colon), $.identifier))
+        optional(seq(alias(":", $.table_colon), $.identifier)),
       ),
 
     function: ($) => seq($.function_start, $.function_impl),
@@ -187,16 +188,16 @@ module.exports = grammar({
         optional($.parameter_list),
         alias($.right_paren, $.function_body_paren),
         alias(optional($._block), $.function_body),
-        alias("end", $.function_end)
+        alias("end", $.function_end),
       ),
 
     parameter_list: ($) =>
       choice(
         seq(
           prec.left(PREC.COMMA, list_of($.identifier, /,\s*/, false)),
-          optional(seq(/,\s*/, $.ellipsis))
+          optional(seq(/,\s*/, $.ellipsis)),
         ),
-        $.ellipsis
+        $.ellipsis,
       ),
     // }}}
 
@@ -213,6 +214,7 @@ module.exports = grammar({
           ["~=", PREC.COMPARE],
           [">=", PREC.COMPARE],
           [">", PREC.COMPARE],
+          ["|>", PREC.PIPE],
           ["|", PREC.BIT_OR],
           ["~", PREC.BIT_NOT],
           ["&", PREC.BIT_AND],
@@ -225,14 +227,14 @@ module.exports = grammar({
           ["//", PREC.MULTI],
           ["%", PREC.MULTI],
         ].map(([operator, precedence]) =>
-          prec.left(precedence, seq($._expression, operator, $._expression))
+          prec.left(precedence, seq($._expression, operator, $._expression)),
         ),
         ...[
           ["..", PREC.CONCAT],
           ["^", PREC.POWER],
         ].map(([operator, precedence]) =>
-          prec.right(precedence, seq($._expression, operator, $._expression))
-        )
+          prec.right(precedence, seq($._expression, operator, $._expression)),
+        ),
       ),
 
     unary_operation: ($) =>
@@ -247,8 +249,10 @@ module.exports = grammar({
           field("documentation", optional($.emmy_documentation)),
           optional($.local),
           list_of(field("name", $.variable_declarator), ",", false),
-          optional(seq("=", list_of(field("value", $._expression), ",", false)))
-        )
+          optional(
+            seq("=", list_of(field("value", $._expression), ",", false)),
+          ),
+        ),
       ),
 
     // TODO: Fix that one test
@@ -279,8 +283,8 @@ module.exports = grammar({
         choice(
           $.identifier,
           seq($.prefix_exp, "[", $._expression, "]"),
-          seq($.prefix_exp, ".", $.identifier)
-        )
+          seq($.prefix_exp, ".", $.identifier),
+        ),
       ),
 
     var_list: ($) => list_of($._var, ",", false),
@@ -303,7 +307,7 @@ module.exports = grammar({
         $._expression,
         alias("do", $.while_do),
         optional($._block),
-        alias("end", $.while_end)
+        alias("end", $.while_end),
       ),
 
     repeat_statement: ($) =>
@@ -311,7 +315,7 @@ module.exports = grammar({
         alias("repeat", $.repeat_start),
         optional($._block),
         alias("until", $.repeat_until),
-        $._expression
+        $._expression,
       ),
 
     if_statement: ($) =>
@@ -325,11 +329,11 @@ module.exports = grammar({
             alias("elseif", $.if_elseif),
             $._expression,
             alias("then", $.if_then),
-            optional($._block)
-          )
+            optional($._block),
+          ),
         ),
         optional(seq(alias("else", $.if_else), optional($._block))),
-        alias("end", $.if_end)
+        alias("end", $.if_end),
       ),
 
     for_statement: ($) =>
@@ -338,7 +342,7 @@ module.exports = grammar({
         choice($.for_numeric, $.for_generic),
         alias("do", $.for_do),
         optional($._block),
-        alias("end", $.for_end)
+        alias("end", $.for_end),
       ),
 
     for_numeric: ($) =>
@@ -348,14 +352,14 @@ module.exports = grammar({
         field("start", $._expression),
         ",",
         field("finish", $._expression),
-        optional(seq(",", field("step", $._expression)))
+        optional(seq(",", field("step", $._expression))),
       ),
 
     for_generic: ($) =>
       seq(
         field("identifier_list", alias($._identifier_list, $.identifier_list)),
         alias("in", $.for_in),
-        field("expression_list", $._expression_list)
+        field("expression_list", $._expression_list),
       ),
 
     function_start: () => "function",
@@ -369,12 +373,12 @@ module.exports = grammar({
             seq(
               alias("local", $.local),
               $.function_start,
-              field("name", $.identifier)
+              field("name", $.identifier),
             ),
-            seq($.function_start, /\s*/, field("name", $.function_name))
+            seq($.function_start, /\s*/, field("name", $.function_name)),
           ),
-          $.function_impl
-        )
+          $.function_impl,
+        ),
       ),
 
     // }}}
@@ -391,7 +395,7 @@ module.exports = grammar({
     _named_field_expression: ($) =>
       prec(
         PREC.PRIORITY,
-        seq(field("name", $.identifier), "=", field("value", $._expression))
+        seq(field("name", $.identifier), "=", field("value", $._expression)),
       ),
 
     _expression_field_expression: ($) =>
@@ -403,23 +407,23 @@ module.exports = grammar({
           //          in a particular color for people :)
           field(
             "field_left_bracket",
-            alias($.left_bracket, $.field_left_bracket)
+            alias($.left_bracket, $.field_left_bracket),
           ),
           field("key", $._expression),
           field(
             "field_right_bracket",
-            alias($.right_bracket, $.field_right_bracket)
+            alias($.right_bracket, $.field_right_bracket),
           ),
           "=",
-          field("value", $._expression)
-        )
+          field("value", $._expression),
+        ),
       ),
 
     _field_expression: ($) =>
       choice(
         $._expression_field_expression,
         $._named_field_expression,
-        field("value", $._expression)
+        field("value", $._expression),
       ),
 
     field_separator: (_) => choice(",", ";"),
@@ -430,7 +434,7 @@ module.exports = grammar({
       choice(
         $._var,
         $.function_call,
-        seq($.left_paren, $._expression, $.right_paren)
+        seq($.left_paren, $._expression, $.right_paren),
       ),
 
     prefix_exp: ($) => $._prefix_exp,
@@ -438,7 +442,7 @@ module.exports = grammar({
     function_call: ($) =>
       prec.right(
         PREC.FUNCTION,
-        seq(field("prefix", $.prefix_exp), choice($._args, $._self_call))
+        seq(field("prefix", $.prefix_exp), choice($._args, $._self_call)),
       ),
 
     _args: ($) => choice($._parentheses_call, $._table_call, $._string_call),
@@ -447,14 +451,14 @@ module.exports = grammar({
       seq(
         alias($.left_paren, $.function_call_paren),
         field("args", optional($.function_arguments)),
-        alias($.right_paren, $.function_call_paren)
+        alias($.right_paren, $.function_call_paren),
       ),
 
     _string_call: ($) =>
       field(
         "args",
         // TODO: Decide if this is really the name we want to use.
-        alias($.string, $.string_argument)
+        alias($.string, $.string_argument),
       ),
 
     _table_call: ($) =>
@@ -468,7 +472,7 @@ module.exports = grammar({
 
     // }}}
 
-    _identifier: (_) => /[a-zA-Z_][a-zA-Z0-9_]*/,
+    _identifier: (_) => /[a-zA-Z_\$][a-zA-Z0-9_\$]*/,
     identifier: ($) => $._identifier,
 
     // Dummy Fields {{{
@@ -497,8 +501,8 @@ module.exports = grammar({
         seq(
           /\s*---@brief \[\[/,
           any_amount_of(/\s*---/, $.documentation_brief),
-          /\s*---@brief \]\]/
-        )
+          /\s*---@brief \]\]/,
+        ),
       ),
 
     documentation_command_content: ($) => /[^\n\[]*/,
@@ -509,17 +513,17 @@ module.exports = grammar({
           /\s*---@command/,
           field(
             "usage",
-            alias($.documentation_command_content, $.documentation_usage)
+            alias($.documentation_command_content, $.documentation_usage),
           ),
           /\[\[/,
           repeat1(
             seq(
               /\s*---/,
-              field("documentation", $.documentation_command_content)
-            )
+              field("documentation", $.documentation_command_content),
+            ),
           ),
-          /\s*---@command \]\]/
-        )
+          /\s*---@command \]\]/,
+        ),
       ),
 
     emmy_ignore: () => /---\n/,
@@ -533,7 +537,7 @@ module.exports = grammar({
         field("key", $._emmy_type),
         ",",
         field("value", $._emmy_type),
-        ">"
+        ">",
       ),
 
     emmy_type: ($) =>
@@ -544,9 +548,9 @@ module.exports = grammar({
           $.emmy_type_key_value,
           $.emmy_function,
           $.emmy_identifier,
-          alias($.string, $.emmy_literal)
+          alias($.string, $.emmy_literal),
         ),
-        field("nullable", optional("?"))
+        field("nullable", optional("?")),
       ),
 
     emmy_type_dictionary: ($) =>
@@ -556,7 +560,7 @@ module.exports = grammar({
       seq(
         field("key", choice($.identifier, seq("[", $._expression, "]"))),
         ":",
-        field("value", $._emmy_type)
+        field("value", $._emmy_type),
       ),
 
     _bar: (_) => "|",
@@ -577,14 +581,14 @@ module.exports = grammar({
           choice("function(", "fun("),
           list_of($.emmy_function_parameter, ",", false),
           ")",
-          optional(seq(":", $.emmy_identifier))
-        )
+          optional(seq(":", $.emmy_identifier)),
+        ),
       ),
 
     emmy_function_parameter: ($) =>
       seq(
         field("name", $.identifier),
-        optional(seq(":", field("type", $._emmy_type)))
+        optional(seq(":", field("type", $._emmy_type))),
       ),
 
     emmy_identifier: ($) => list_of($._identifier, ".", false),
@@ -603,8 +607,8 @@ module.exports = grammar({
           field("type", $._emmy_type),
           optional(seq(/\s*:\s*/, field("parent", $._emmy_type))),
           optional(seq(/\s*@\s*/, field("description", $.class_description))),
-          /\n\s*/
-        )
+          /\n\s*/,
+        ),
       ),
 
     documentation_class: ($) =>
@@ -628,7 +632,7 @@ module.exports = grammar({
 
         // TODO: How closely should we be to emmy...
         optional(seq(/\s*:\s*/, field("description", $.parameter_description))),
-        /\n\s*/
+        /\n\s*/,
       ),
 
     // Definition:
@@ -649,7 +653,7 @@ module.exports = grammar({
 
         // TODO: How closely should we be to emmy...
         optional(seq(/\s*:\s*/, field("description", $.field_description))),
-        /\n\s*/
+        /\n\s*/,
       ),
 
     emmy_visibility: () => choice("public", "protected", "private"),
@@ -657,7 +661,7 @@ module.exports = grammar({
     _multiline_emmy_string: ($) =>
       prec.right(
         PREC.PRIORITY,
-        seq(/[^\n]+/, any_amount_of(/\s*---[^\n]*/))
+        seq(/[^\n]+/, any_amount_of(/\s*---[^\n]*/)),
         // seq(/[^\n]*/, any_amount_of(/\n\s*---[^\n]*/))
       ),
 
@@ -678,9 +682,9 @@ module.exports = grammar({
         optional(
           seq(
             choice(":", "@comment"),
-            field("description", $.emmy_return_description)
-          )
-        )
+            field("description", $.emmy_return_description),
+          ),
+        ),
 
         // TODO: This feels a bit weird, because it seems like maybe whitespace
         // could break this, but I will leave it for now because it makes me happy.
@@ -708,7 +712,7 @@ module.exports = grammar({
           choice(
             alias($.emmy_comment, $.emmy_header),
             $.emmy_typedecl,
-            $.emmy_return
+            $.emmy_return,
           ),
           any_amount_of(
             choice(
@@ -723,10 +727,10 @@ module.exports = grammar({
               $.emmy_todo,
               $.emmy_usage,
               $.emmy_varargs,
-              $.emmy_return
-            )
-          )
-        )
+              $.emmy_return,
+            ),
+          ),
+        ),
       ),
     // }}}
 
@@ -736,16 +740,16 @@ module.exports = grammar({
       choice(
         seq(
           field("start", alias("--", "comment_start")),
-          field("content", alias(/[^\r\n]*/, "comment_content"))
+          field("content", alias(/[^\r\n]*/, "comment_content")),
         ),
         seq(
           field("start", alias($._block_comment_start, "comment_start")),
           field(
             "content",
-            optional(alias($._block_comment_content, "comment_content"))
+            optional(alias($._block_comment_content, "comment_content")),
           ),
-          field("end", alias($._block_comment_end, "comment_end"))
-        )
+          field("end", alias($._block_comment_end, "comment_end")),
+        ),
       ),
     // }}}
   },
