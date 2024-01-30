@@ -29,7 +29,7 @@ const PREC = {
 EQUALS_LEVELS = 5;
 
 module.exports = grammar({
-  name: "lua",
+  name: "lotus",
 
   externals: ($) => [
     $._block_comment_start,
